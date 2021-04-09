@@ -18,33 +18,47 @@
  */
 package org.apache.pinot.plugin.stream.pulsar;
 
+import java.io.IOException;
 import java.util.Set;
 import org.apache.pinot.spi.stream.PartitionLevelConsumer;
 import org.apache.pinot.spi.stream.StreamConsumerFactory;
 import org.apache.pinot.spi.stream.StreamLevelConsumer;
 import org.apache.pinot.spi.stream.StreamMetadataProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
-public class KafkaConsumerFactory extends StreamConsumerFactory {
+public class PulsarConsumerFactory extends StreamConsumerFactory {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PulsarConsumerFactory.class);
 
   @Override
   public PartitionLevelConsumer createPartitionLevelConsumer(String clientId, int partition) {
-    return new KafkaPartitionLevelConsumer(clientId, _streamConfig, partition);
+    try {
+      return new PulsarPartitionLevelConsumer(clientId, _streamConfig, partition);
+    } catch (IOException e) {
+      LOGGER.error("Could not connect to pulsar", e);
+      return null;
+    }
   }
 
   @Override
   public StreamLevelConsumer createStreamLevelConsumer(String clientId, String tableName, Set<String> fieldsToRead,
       String groupId) {
-    return new KafkaStreamLevelConsumer(clientId, tableName, _streamConfig, fieldsToRead, groupId);
+    return null;
   }
 
   @Override
   public StreamMetadataProvider createPartitionMetadataProvider(String clientId, int partition) {
-    return new KafkaStreamMetadataProvider(clientId, _streamConfig, partition);
+    try {
+      return new PulsarStreamMetadataProvider(clientId, _streamConfig, partition);
+    } catch (IOException e) {
+      LOGGER.error("Could not connect to pulsar", e);
+      return null;
+    }
   }
 
   @Override
   public StreamMetadataProvider createStreamMetadataProvider(String clientId) {
-    return new KafkaStreamMetadataProvider(clientId, _streamConfig);
+    return null;
   }
 }

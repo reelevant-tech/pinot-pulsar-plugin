@@ -18,43 +18,38 @@
  */
 package org.apache.pinot.plugin.stream.pulsar;
 
-import java.util.ArrayList;
 import java.util.List;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.utils.Bytes;
 import org.apache.pinot.spi.stream.LongMsgOffset;
 import org.apache.pinot.spi.stream.MessageBatch;
 import org.apache.pinot.spi.stream.StreamPartitionMsgOffset;
 
 
-public class KafkaMessageBatch implements MessageBatch<byte[]> {
+public class PulsarMessageBatch implements MessageBatch<byte[]> {
 
-  private List<MessageAndOffset> messageList = new ArrayList<>();
+  private final List<MessageAndOffset> _messageList;
 
-  public KafkaMessageBatch(Iterable<ConsumerRecord<String, Bytes>> iterable) {
-    for (ConsumerRecord<String, Bytes> record : iterable) {
-      messageList.add(new MessageAndOffset(record.value().get(), record.offset()));
-    }
+  public PulsarMessageBatch(List<MessageAndOffset> messages) {
+    _messageList = messages;
   }
 
   @Override
   public int getMessageCount() {
-    return messageList.size();
+    return _messageList.size();
   }
 
   @Override
   public byte[] getMessageAtIndex(int index) {
-    return messageList.get(index).getMessage().array();
+    return _messageList.get(index).getMessage().array();
   }
 
   @Override
   public int getMessageOffsetAtIndex(int index) {
-    return messageList.get(index).getMessage().arrayOffset();
+    return _messageList.get(index).getMessage().arrayOffset();
   }
 
   @Override
   public int getMessageLengthAtIndex(int index) {
-    return messageList.get(index).payloadSize();
+    return _messageList.get(index).payloadSize();
   }
 
   @Override
@@ -64,6 +59,6 @@ public class KafkaMessageBatch implements MessageBatch<byte[]> {
 
   @Override
   public StreamPartitionMsgOffset getNextStreamParitionMsgOffsetAtIndex(int index) {
-    return new LongMsgOffset(messageList.get(index).getNextOffset());
+    return new LongMsgOffset(_messageList.get(index).getNextOffset());
   }
 }
