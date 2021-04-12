@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pinot.plugin.stream.pulsar;
+package com.reelevant.pinot.plugins.stream.pulsar;
 
 import com.google.common.collect.Iterables;
 import java.io.IOException;
@@ -65,6 +65,10 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
       }
       _pulsarConsumer.seek(MessageIdUtils.getMessageId(startOffset));
       batchMessages = _pulsarConsumer.batchReceive();
+      // avoid overhead when there are no messages
+      if (batchMessages.size() == 0) {
+        return new PulsarMessageBatch(Collections.emptyList());
+      }
     } catch (PulsarClientException e) {
       // we 
       LOGGER.error("Could not read messages from pulsar", e);
@@ -80,7 +84,7 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
       messages.add(new MessageAndOffset(record.getData(), MessageIdUtils.getOffset(record.getMessageId())));
     }
     PulsarMessageBatch batch = new PulsarMessageBatch(messages);
-    _lastOffsetReceived = batch.getMessageOffsetAtIndex(batch.getMessageCount()); 
+    _lastOffsetReceived = messages.get(messages.size() - 1).getOffset();
     return batch;
   }
 

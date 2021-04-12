@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pinot.plugin.stream.pulsar;
+package com.reelevant.pinot.plugins.stream.pulsar;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
@@ -52,10 +52,14 @@ public abstract class PulsarPartitionLevelConnectionHandler {
       .builder()
       .serviceUrl(_config.getBootstrapHosts())
       .build();
+    String topic = _topic;
+    if (partition != Integer.MIN_VALUE) {
+      topic += "-partition-" + partition;
+    }
     _pulsarConsumer = _pulsarClient
       .newConsumer()
-      .topic(_topic + "-partition-" + partition)
-      .subscriptionName(_topic + "-partition-" + partition)
+      .topic(topic)
+      .subscriptionName(topic)
       .subscriptionType(SubscriptionType.Exclusive)
       .enableBatchIndexAcknowledgment(false)
       .batchReceivePolicy(BatchReceivePolicy.builder()

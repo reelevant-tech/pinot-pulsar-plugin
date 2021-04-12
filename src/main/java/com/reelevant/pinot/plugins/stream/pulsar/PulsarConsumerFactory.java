@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pinot.plugin.stream.pulsar;
+package com.reelevant.pinot.plugins.stream.pulsar;
 
 import java.io.IOException;
 import java.util.Set;
@@ -59,6 +59,11 @@ public class PulsarConsumerFactory extends StreamConsumerFactory {
 
   @Override
   public StreamMetadataProvider createStreamMetadataProvider(String clientId) {
-    return null;
+    try {
+      return new PulsarStreamMetadataProvider(clientId, _streamConfig);
+    } catch (IOException e) {
+      LOGGER.error("Could not connect to pulsar", e);
+      return null;
+    }
   }
 }
