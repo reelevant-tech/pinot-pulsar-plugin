@@ -32,7 +32,6 @@ import org.apache.pinot.spi.stream.StreamPartitionMsgOffset;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.util.MessageIdUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +40,7 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
   private static final Logger LOGGER = LoggerFactory.getLogger(PulsarPartitionLevelConsumer.class);
 
   private long _lastOffsetReceived = -1;
+  private boolean hasSeek = false;
 
   public PulsarPartitionLevelConsumer(String clientId, StreamConfig streamConfig, int partition) throws IOException {
     super(clientId, streamConfig, partition);
@@ -61,9 +61,14 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
     try {
       // if the new offset is above the old one, that means we succesfully ingested the previous batch
       if (startOffset > _lastOffsetReceived && _lastOffsetReceived != -1) {
-        _pulsarConsumer.acknowledgeCumulative(MessageIdUtils.getMessageId(_lastOffsetReceived));
+        _pulsarConsumer.acknowledgeCumulative(MessageIdUtils.getMessageId(_lastOffsetReceived, _partition));
       }
-      _pulsarConsumer.seek(MessageIdUtils.getMessageId(startOffset));
+      if (hasSeek == false) {
+        LOGGER.info("Seeking to offset {}", startOffset);
+        _pulsarConsumer.seek(MessageIdUtils.getMessageId(startOffset, _partition));
+        LOGGER.info("Seeking to offset {} finished.", startOffset);
+        hasSeek = true;
+      }
       batchMessages = _pulsarConsumer.batchReceive();
       // avoid overhead when there are no messages
       if (batchMessages.size() == 0) {

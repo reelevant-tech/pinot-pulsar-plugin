@@ -41,7 +41,7 @@ public abstract class PulsarPartitionLevelConnectionHandler {
   protected final int _partition;
   protected final String _topic;
   protected final PulsarClient _pulsarClient;
-  protected final Consumer<byte[]> _pulsarConsumer;
+  protected Consumer<byte[]> _pulsarConsumer = null;
 
   public PulsarPartitionLevelConnectionHandler(String clientId, StreamConfig streamConfig, int partition) throws IOException {
     _config = new PulsarPartitionLevelStreamConfig(streamConfig);
@@ -52,14 +52,14 @@ public abstract class PulsarPartitionLevelConnectionHandler {
       .builder()
       .serviceUrl(_config.getBootstrapHosts())
       .build();
-    String topic = _topic;
-    if (partition != Integer.MIN_VALUE) {
-      topic += "-partition-" + partition;
-    }
+    // 
+    if (partition == Integer.MIN_VALUE) return;
+    String topic = _topic + "-partition-" + partition;
     _pulsarConsumer = _pulsarClient
       .newConsumer()
       .topic(topic)
       .subscriptionName(topic)
+      .consumerName(topic)
       .subscriptionType(SubscriptionType.Exclusive)
       .enableBatchIndexAcknowledgment(false)
       .batchReceivePolicy(BatchReceivePolicy.builder()
@@ -72,7 +72,9 @@ public abstract class PulsarPartitionLevelConnectionHandler {
 
   public void close()
       throws IOException {
-    _pulsarConsumer.close();
+    if (_pulsarConsumer != null) {
+      _pulsarConsumer.close();
+    } 
     _pulsarClient.close();
   }
 
