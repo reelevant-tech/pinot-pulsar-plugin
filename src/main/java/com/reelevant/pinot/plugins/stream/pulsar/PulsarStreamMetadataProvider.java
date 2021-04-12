@@ -74,7 +74,6 @@ public class PulsarStreamMetadataProvider extends PulsarPartitionLevelConnection
     } else {
       throw new IllegalArgumentException("Unknown initial offset value " + offsetCriteria.toString());
     }
-    System.out.println(String.format("starting offset %d (%s)", offset, offsetCriteria.getOffsetString()));
     return new LongMsgOffset(offset);
   }
 
