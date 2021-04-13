@@ -65,9 +65,9 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
       }
       if (hasSeek == false) {
         LOGGER.info("Seeking to offset {}", startOffset);
+        hasSeek = true;
         _pulsarConsumer.seek(MessageIdUtils.getMessageId(startOffset, _partition));
         LOGGER.info("Seeking to offset {} finished.", startOffset);
-        hasSeek = true;
       }
       batchMessages = _pulsarConsumer.batchReceive();
       // avoid overhead when there are no messages
