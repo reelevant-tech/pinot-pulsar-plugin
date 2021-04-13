@@ -40,16 +40,19 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
   private static final Logger LOGGER = LoggerFactory.getLogger(PulsarPartitionLevelConsumer.class);
 
   private long _lastOffsetReceived = -1;
+  // we only need to seek once, when we first read messages
   private boolean hasSeek = false;
 
   public PulsarPartitionLevelConsumer(String clientId, StreamConfig streamConfig, int partition) throws IOException {
     super(clientId, streamConfig, partition);
+    LOGGER.info("Constructed new PulsarPartitionLevelConsumer, clientId: {}, streamConfig: {}, partition: {}", clientId, streamConfig, partition);
   }
 
   @Override
   public MessageBatch<byte[]> fetchMessages(StreamPartitionMsgOffset startMsgOffset, StreamPartitionMsgOffset endMsgOffset,
       int timeoutMillis)
       throws TimeoutException {
+    LOGGER.info("fetchMessages() called, startMsgOffset: {}, endMsgOffset: {}, timeoutMillis: {}", startMsgOffset, endMsgOffset, timeoutMillis);
     final long startOffset = ((LongMsgOffset)startMsgOffset).getOffset();
     final long endOffset = endMsgOffset == null ? Long.MAX_VALUE : ((LongMsgOffset)endMsgOffset).getOffset();
     return fetchMessages(startOffset, endOffset, timeoutMillis);
@@ -57,6 +60,7 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
 
   public MessageBatch<byte[]> fetchMessages(long startOffset, long endOffset, int timeoutMillis)
       throws TimeoutException {
+    LOGGER.debug("fetchMessages() called, startOffset: {}, endOffset: {}, timeoutMillis: {}", startOffset, endOffset, timeoutMillis);
     Messages<byte[]> batchMessages;
     try {
       // if the new offset is above the old one, that means we succesfully ingested the previous batch
@@ -70,6 +74,7 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
         LOGGER.info("Seeking to offset {} finished.", startOffset);
       }
       batchMessages = _pulsarConsumer.batchReceive();
+      LOGGER.debug("Found {} messages from batch", batchMessages.size());
       // avoid overhead when there are no messages
       if (batchMessages.size() == 0) {
         return new PulsarMessageBatch(Collections.emptyList());

@@ -28,6 +28,9 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * KafkaPartitionLevelConnectionHandler provides low level APIs to access Kafka partition level information.
@@ -42,8 +45,10 @@ public abstract class PulsarPartitionLevelConnectionHandler {
   protected final String _topic;
   protected final PulsarClient _pulsarClient;
   protected Consumer<byte[]> _pulsarConsumer = null;
+  private static final Logger LOGGER = LoggerFactory.getLogger(PulsarPartitionLevelConsumer.class);
 
   public PulsarPartitionLevelConnectionHandler(String clientId, StreamConfig streamConfig, int partition) throws IOException {
+    LOGGER.info("Construct new PulsarPartitionLevelConnectionHandler, clientId: {}, streamConfig: {}, partition: {}", clientId, streamConfig, partition);
     _config = new PulsarPartitionLevelStreamConfig(streamConfig);
     _clientId = clientId;
     _partition = partition;
@@ -70,8 +75,11 @@ public abstract class PulsarPartitionLevelConnectionHandler {
       .subscribe();
   }
 
+  // note: this method can be called by Pinot if we don't receive any messages in a long time
+  // see https://github.com/apache/incubator-pinot/blob/89a22f097c5ff26396e58950c90d764066a56121/pinot-core/src/main/java/org/apache/pinot/core/data/manager/realtime/LLRealtimeSegmentDataManager.java#L413-L414
   public void close()
       throws IOException {
+    LOGGER.info("Close PulsarPartitionLevelConnectionHandler, clientId: {}, topic: {}, partition: {}", _clientId, _topic, _partition);
     if (_pulsarConsumer != null) {
       _pulsarConsumer.close();
     } 
