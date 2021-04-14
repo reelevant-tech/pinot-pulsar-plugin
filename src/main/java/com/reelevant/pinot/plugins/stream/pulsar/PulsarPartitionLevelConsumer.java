@@ -29,6 +29,7 @@ import org.apache.pinot.spi.stream.PartitionLevelConsumer;
 import org.apache.pinot.spi.stream.StreamConfig;
 import org.apache.pinot.spi.stream.StreamPartitionMsgOffset;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,30 +57,36 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
 
   public MessageBatch<byte[]> fetchMessages(long startOffset, long endOffset, int timeoutMillis)
       throws TimeoutException {
-    LOGGER.info("fetchMessages() called, startOffset: {}, endOffset: {}, timeoutMillis: {}", startOffset, endOffset, timeoutMillis); // TODO: move this to debug level
+    LOGGER.debug("fetchMessages() called, startOffset: {}, endOffset: {}, timeoutMillis: {}", startOffset, endOffset, timeoutMillis);
 
     if (endOffset != Long.MAX_VALUE) {
       LOGGER.error("Could not read messages from pulsar with an endOffset");
       return new PulsarMessageBatch(Collections.emptyList());
     }
 
-    if (startOffset != -1 && startOffset < _lastOffsetReceived) {
+    if (startOffset != -1 && startOffset < _lastOffsetReceived) { // Note: we could seek() if this happen, but I'm not confident that the seek will work
       LOGGER.error("Could not read messages from pulsar with a startOffset ({}) < lastOffsetReceived ({})", startOffset, _lastOffsetReceived);
       return new PulsarMessageBatch(Collections.emptyList());
     }
 
     List<MessageAndOffset> messages = new ArrayList<>();
     try {
-      while (_pulsarReader.hasMessageAvailable()) {
-        Message<byte[]> record = _pulsarReader.readNext();
-        LOGGER.info("Readed message with id {}", record.getMessageId()); // TODO: move this to debug level
+      if (_lastOffsetReceived != -1) {
+        LOGGER.debug("Ack messages until {} offset", _lastOffsetReceived);
+        _pulsarConsumer.acknowledgeCumulative(MessageIdUtils.getMessageId(_lastOffsetReceived, _partition));
+      }
+      Messages<byte[]> batchMessages = _pulsarConsumer.batchReceive();
+      LOGGER.debug("Readed {} messages", batchMessages.size());
+      if (batchMessages.size() == 0) { // stop here with no messages, and avoid any exception when trying to set lastOffsetReceived
+        return new PulsarMessageBatch(Collections.emptyList());
+      }
+      for (Message<byte[]> record : batchMessages) {
         messages.add(new MessageAndOffset(record.getData(), MessageIdUtils.getOffset(record.getMessageId())));
       }
     } catch (PulsarClientException e) {
       LOGGER.error("Could not read messages from pulsar", e);
       return new PulsarMessageBatch(Collections.emptyList());
     }
-    LOGGER.info("Found {} messages", messages.size()); // TODO: move this to debug level
     _lastOffsetReceived = messages.get(messages.size() - 1).getOffset();
     return new PulsarMessageBatch(messages);
   }
