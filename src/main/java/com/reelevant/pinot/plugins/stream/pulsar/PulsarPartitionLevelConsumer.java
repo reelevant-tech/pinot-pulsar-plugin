@@ -18,7 +18,6 @@
  */
 package com.reelevant.pinot.plugins.stream.pulsar;
 
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,7 +29,6 @@ import org.apache.pinot.spi.stream.PartitionLevelConsumer;
 import org.apache.pinot.spi.stream.StreamConfig;
 import org.apache.pinot.spi.stream.StreamPartitionMsgOffset;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +38,6 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
   private static final Logger LOGGER = LoggerFactory.getLogger(PulsarPartitionLevelConsumer.class);
 
   private long _lastOffsetReceived = -1;
-  // we only need to seek once, when we first read messages
-  private boolean hasSeek = false;
 
   public PulsarPartitionLevelConsumer(String clientId, StreamConfig streamConfig, int partition) throws IOException {
     super(clientId, streamConfig, partition);
@@ -52,7 +48,7 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
   public MessageBatch<byte[]> fetchMessages(StreamPartitionMsgOffset startMsgOffset, StreamPartitionMsgOffset endMsgOffset,
       int timeoutMillis)
       throws TimeoutException {
-    LOGGER.info("fetchMessages() called, startMsgOffset: {}, endMsgOffset: {}, timeoutMillis: {}", startMsgOffset, endMsgOffset, timeoutMillis);
+    LOGGER.debug("fetchMessages() called, startMsgOffset: {}, endMsgOffset: {}, timeoutMillis: {}", startMsgOffset, endMsgOffset, timeoutMillis);
     final long startOffset = ((LongMsgOffset)startMsgOffset).getOffset();
     final long endOffset = endMsgOffset == null ? Long.MAX_VALUE : ((LongMsgOffset)endMsgOffset).getOffset();
     return fetchMessages(startOffset, endOffset, timeoutMillis);
@@ -60,51 +56,32 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
 
   public MessageBatch<byte[]> fetchMessages(long startOffset, long endOffset, int timeoutMillis)
       throws TimeoutException {
-    LOGGER.debug("fetchMessages() called, startOffset: {}, endOffset: {}, timeoutMillis: {}", startOffset, endOffset, timeoutMillis);
-    Messages<byte[]> batchMessages;
+    LOGGER.info("fetchMessages() called, startOffset: {}, endOffset: {}, timeoutMillis: {}", startOffset, endOffset, timeoutMillis); // TODO: move this to debug level
+
+    if (endOffset != Long.MAX_VALUE) {
+      LOGGER.error("Could not read messages from pulsar with an endOffset");
+      return new PulsarMessageBatch(Collections.emptyList());
+    }
+
+    if (startOffset != -1 && startOffset < _lastOffsetReceived) {
+      LOGGER.error("Could not read messages from pulsar with a startOffset ({}) < lastOffsetReceived ({})", startOffset, _lastOffsetReceived);
+      return new PulsarMessageBatch(Collections.emptyList());
+    }
+
+    List<MessageAndOffset> messages = new ArrayList<>();
     try {
-      // if the new offset is above the old one, that means we succesfully ingested the previous batch
-      if (startOffset > _lastOffsetReceived && _lastOffsetReceived != -1) {
-        _pulsarConsumer.acknowledgeCumulative(MessageIdUtils.getMessageId(_lastOffsetReceived, _partition));
-      }
-      if (hasSeek == false) {
-        LOGGER.info("Seeking to offset {}", startOffset);
-        hasSeek = true;
-        _pulsarConsumer.seek(MessageIdUtils.getMessageId(startOffset, _partition));
-        LOGGER.info("Seeking to offset {} finished.", startOffset);
-      }
-      batchMessages = _pulsarConsumer.batchReceive();
-      LOGGER.debug("Found {} messages from batch", batchMessages.size());
-      // avoid overhead when there are no messages
-      if (batchMessages.size() == 0) {
-        return new PulsarMessageBatch(Collections.emptyList());
+      while (_pulsarReader.hasMessageAvailable()) {
+        Message<byte[]> record = _pulsarReader.readNext();
+        LOGGER.info("Readed message with id {}", record.getMessageId()); // TODO: move this to debug level
+        messages.add(new MessageAndOffset(record.getData(), MessageIdUtils.getOffset(record.getMessageId())));
       }
     } catch (PulsarClientException e) {
-      // we 
       LOGGER.error("Could not read messages from pulsar", e);
       return new PulsarMessageBatch(Collections.emptyList());
     }
-    // we receive a batch of message and we are filtering out messages with offset above endOffset
-    // however endOffset is generally Long.MAX_VALUE
-    Iterable<Message<byte[]>> filteredMessages =
-        buildOffsetFilteringIterable(batchMessages, startOffset, endOffset);
-    // construct a messageBatch for pulsar
-    List<MessageAndOffset> messages = new ArrayList<>();
-    for (Message<byte[]> record : filteredMessages) {
-      messages.add(new MessageAndOffset(record.getData(), MessageIdUtils.getOffset(record.getMessageId())));
-    }
-    PulsarMessageBatch batch = new PulsarMessageBatch(messages);
+    LOGGER.info("Found {} messages", messages.size()); // TODO: move this to debug level
     _lastOffsetReceived = messages.get(messages.size() - 1).getOffset();
-    return batch;
-  }
-
-  private Iterable<Message<byte[]>> buildOffsetFilteringIterable(
-      Messages<byte[]> messages, final long startOffset, final long endOffset) {
-    return Iterables.filter(messages, input -> {
-      long offset = MessageIdUtils.getOffset(input.getMessageId());
-      // Filter messages that are either null or have an offset ∉ [startOffset, endOffset]
-      return input != null && offset >= startOffset && (endOffset > offset || endOffset == -1);
-    });
+    return new PulsarMessageBatch(messages);
   }
 
   @Override
