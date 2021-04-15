@@ -20,14 +20,9 @@ package com.reelevant.pinot.plugins.stream.pulsar;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.pinot.spi.stream.StreamConfig;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.BatchReceivePolicy;
-import org.apache.pulsar.client.api.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +40,6 @@ public abstract class PulsarPartitionLevelConnectionHandler {
   protected final int _partition;
   protected final String _topic;
   protected final PulsarClient _pulsarClient;
-  protected Consumer<byte[]> _pulsarConsumer = null;
   private static final Logger LOGGER = LoggerFactory.getLogger(PulsarPartitionLevelConsumer.class);
 
   public PulsarPartitionLevelConnectionHandler(String clientId, StreamConfig streamConfig, int partition) throws IOException {
@@ -58,23 +52,6 @@ public abstract class PulsarPartitionLevelConnectionHandler {
       .builder()
       .serviceUrl(_config.getBootstrapHosts())
       .build();
-    // 
-    if (partition == Integer.MIN_VALUE) return;
-    String topic = _topic + "-partition-" + partition;
-    _pulsarConsumer = _pulsarClient
-      .newConsumer()
-      .topic(topic)
-      .subscriptionName(topic)
-      .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-      .consumerName(topic)
-      .subscriptionType(SubscriptionType.Exclusive)
-      .enableBatchIndexAcknowledgment(false)
-      .batchReceivePolicy(BatchReceivePolicy.builder()
-        .maxNumMessages(_config.getMaximumBatchMessagesCount())
-        .maxNumBytes(_config.getMaximumBatchSize())
-        .timeout(_config.getBatchTimeout(), TimeUnit.MILLISECONDS)
-        .build())
-      .subscribe();
   }
 
   // note: this method can be called by Pinot if we don't receive any messages in a long time
@@ -82,9 +59,6 @@ public abstract class PulsarPartitionLevelConnectionHandler {
   public void close()
       throws IOException {
     LOGGER.info("Close PulsarPartitionLevelConnectionHandler, clientId: {}, topic: {}, partition: {}", _clientId, _topic, _partition);
-    if (_pulsarConsumer != null) {
-      _pulsarConsumer.close();
-    } 
     _pulsarClient.close();
   }
 
