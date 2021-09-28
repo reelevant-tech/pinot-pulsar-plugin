@@ -97,21 +97,32 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
       LOGGER.error("Could not read messages from pulsar with an endOffset");
       return new PulsarMessageBatch(Collections.emptyList());
     }
+    
+    /**
+     * 1. Launch read with startOffset=-1
+     * 2. We seek to the earliest
+     * 3. Read messages
+     * 4. Launch read with startOffset= lastMessage.offset + 1 (cf. MessageAndOffset.java)
+     * 5. If no anymore messages, Pinot restart consumer (by default, after 35 iterations it restart)
+     * 6. Launch read with startOffset= lastMessage.offset + 1
+     * 
+     * If startOffset<lastMessage.offset+1, we want to read previous messages, we need to seek
+     * If startOffset>lastMessage.offset+1, we want to read newest messages, we need to seek
+     */
 
     if (
       // if the consumer hasn't been inited yet, we need to seek() to set the cursor
       // to the right position
       consumerInited == false ||
-      // if pinot is trying to read an offset that we've already ack with this consumer
+      // if pinot is trying to read an offset that we've already read/ack with this consumer
       // we need to seek() too to move the cursor
-      (_lastOffsetReceived != -1 && startOffset <= _lastOffsetReceived)
+      // note: we need to check if _lastOffsetReceived != -1 because
+      // we could have inited the consumer but not read any messages yet
+      (_lastOffsetReceived != -1 && startOffset != _lastOffsetReceived + 1)
     ) {
       consumerInited = true;
-      // note: we need to substract 1 to the offset if we're not trying to read from the beginning.
-      // because Pinot send us the lastOffset we receive + 1 (see MessageAndOffset.java)
-      // so we need to seek() at the previous offset since it's exclusive
-      MessageId messageId = startOffset == -1 ? MessageId.earliest : MessageIdUtils.getMessageId(startOffset - 1, _partition);
-      LOGGER.info("Seeking reader with messageId: {}", messageId);
+      MessageId messageId = startOffset == -1 ? MessageId.earliest : MessageIdUtils.getMessageId(startOffset, _partition);
+      LOGGER.info("Seeking reader with messageId: {}, startOffset: {}, _lastOffsetReceived: {}", messageId, startOffset, _lastOffsetReceived);
       try {
         _pulsarConsumer.seek(messageId);
       } catch (PulsarClientException e) {
