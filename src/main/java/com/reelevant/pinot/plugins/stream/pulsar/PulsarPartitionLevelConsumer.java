@@ -21,18 +21,17 @@ package com.reelevant.pinot.plugins.stream.pulsar;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-// import java.util.HashMap;
 import java.util.List;
-// import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.pinot.spi.stream.LongMsgOffset;
 import org.apache.pinot.spi.stream.MessageBatch;
 import org.apache.pinot.spi.stream.PartitionLevelConsumer;
 import org.apache.pinot.spi.stream.StreamConfig;
 import org.apache.pinot.spi.stream.StreamPartitionMsgOffset;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
@@ -40,8 +39,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.BatchReceivePolicy;
-import org.apache.pulsar.client.api.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,6 +65,7 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
       .subscriptionType(SubscriptionType.Exclusive)
       .subscriptionMode(SubscriptionMode.NonDurable)
       .enableBatchIndexAcknowledgment(false)
+      .readCompacted(true)
       .batchReceivePolicy(BatchReceivePolicy.builder()
         .maxNumMessages(_config.getMaximumBatchMessagesCount())
         .maxNumBytes(_config.getMaximumBatchSize())
@@ -86,6 +84,7 @@ public class PulsarPartitionLevelConsumer extends PulsarPartitionLevelConnection
     return fetchMessages(startOffset, endOffset, timeoutMillis);
   }
 
+  @Override
   public MessageBatch<byte[]> fetchMessages(long startOffset, long endOffset, int timeoutMillis)
       throws TimeoutException {
     MessageId startMessageId = MessageIdUtils.getMessageId(startOffset, _partition);
