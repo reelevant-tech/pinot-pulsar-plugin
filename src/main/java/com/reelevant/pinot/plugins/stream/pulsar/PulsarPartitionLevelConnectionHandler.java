@@ -18,52 +18,63 @@
  */
 package com.reelevant.pinot.plugins.stream.pulsar;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-
+import java.util.List;
 import org.apache.pinot.spi.stream.StreamConfig;
 import org.apache.pulsar.client.api.PulsarClient;
-
+import org.apache.pulsar.client.api.Reader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 /**
- * KafkaPartitionLevelConnectionHandler provides low level APIs to access Kafka partition level information.
- * E.g. partition counts, offsets per partition.
- *
+ * Manages the Pulsar client connection, given the partition id and {@link PulsarConfig}
  */
-public abstract class PulsarPartitionLevelConnectionHandler {
+public class PulsarPartitionLevelConnectionHandler {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PulsarPartitionLevelConnectionHandler.class);
 
-  protected final PulsarPartitionLevelStreamConfig _config;
+  protected final PulsarConfig _config;
   protected final String _clientId;
   protected final int _partition;
   protected final String _topic;
-  protected final PulsarClient _pulsarClient;
-  private static final Logger LOGGER = LoggerFactory.getLogger(PulsarPartitionLevelConsumer.class);
+  protected PulsarClient _pulsarClient = null;
+  protected Reader<byte[]> _reader = null;
 
-  public PulsarPartitionLevelConnectionHandler(String clientId, StreamConfig streamConfig, int partition) throws IOException {
-    LOGGER.info("Construct new PulsarPartitionLevelConnectionHandler, clientId: {}, streamConfig: {}, partition: {}", clientId, streamConfig, partition);
-    _config = new PulsarPartitionLevelStreamConfig(streamConfig);
+  /**
+   * Creates a new instance of {@link PulsarClient} and {@link Reader}
+   */
+  public PulsarPartitionLevelConnectionHandler(String clientId, StreamConfig streamConfig, int partition) {
+    _config = new PulsarConfig(streamConfig, clientId);
     _clientId = clientId;
     _partition = partition;
-    _topic = _config.getTopicName();
-    _pulsarClient = PulsarClient
-      .builder()
-      .serviceUrl(_config.getBootstrapHosts())
-      .build();
+    _topic = _config.getPulsarTopicName();
+
+    try {
+      _pulsarClient = PulsarClient.builder().serviceUrl(_config.getBootstrapServers()).build();
+
+      _reader = _pulsarClient.newReader().topic(getPartitionedTopicName(partition)).readCompacted(true)
+          .startMessageId(_config.getInitialMessageId()).create();
+
+      LOGGER.info("Created consumer with id {} for topic {}", _reader, _config.getPulsarTopicName());
+    } catch (Exception e) {
+      LOGGER.error("Could not create pulsar consumer", e);
+    }
   }
 
-  // note: this method can be called by Pinot if we don't receive any messages in a long time
-  // see https://github.com/apache/incubator-pinot/blob/89a22f097c5ff26396e58950c90d764066a56121/pinot-core/src/main/java/org/apache/pinot/core/data/manager/realtime/LLRealtimeSegmentDataManager.java#L413-L414
+  /**
+   * A pulsar partitioned topic with N partitions is comprised of N topics with topicName as prefix and portitionId
+   * as suffix.
+   * The method fetches the names of N partitioned topic and returns the topic name of {@param partition}
+   */
+  protected String getPartitionedTopicName(int partition)
+      throws Exception {
+    List<String> partitionTopicList = _pulsarClient.getPartitionsForTopic(_topic).get();
+    return partitionTopicList.get(partition);
+  }
+
   public void close()
       throws IOException {
-    LOGGER.info("Close PulsarPartitionLevelConnectionHandler, clientId: {}, topic: {}, partition: {}", _clientId, _topic, _partition);
+    _reader.close();
     _pulsarClient.close();
-  }
-
-  @VisibleForTesting
-  protected PulsarPartitionLevelStreamConfig getPulsarPartitionLevelStreamConfig() {
-    return _config;
   }
 }
