@@ -18,49 +18,52 @@
  */
 package com.reelevant.pinot.plugins.stream.pulsar;
 
+import java.io.IOException;
 import java.util.Set;
-import org.apache.pinot.spi.stream.PartitionGroupConsumer;
-import org.apache.pinot.spi.stream.PartitionGroupConsumptionStatus;
 import org.apache.pinot.spi.stream.PartitionLevelConsumer;
 import org.apache.pinot.spi.stream.StreamConsumerFactory;
 import org.apache.pinot.spi.stream.StreamLevelConsumer;
 import org.apache.pinot.spi.stream.StreamMetadataProvider;
-import org.apache.pinot.spi.stream.StreamPartitionMsgOffsetFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
-/**
- * A {@link StreamConsumerFactory} implementation for the Pulsar stream
- */
 public class PulsarConsumerFactory extends StreamConsumerFactory {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PulsarConsumerFactory.class);
+
   @Override
   public PartitionLevelConsumer createPartitionLevelConsumer(String clientId, int partition) {
-    throw new UnsupportedOperationException("Partition Level consumer is deprecated!");
+    try {
+      return new PulsarPartitionLevelConsumer(clientId, _streamConfig, partition);
+    } catch (IOException e) {
+      LOGGER.error("Could not connect to pulsar", e);
+      return null;
+    }
   }
 
   @Override
   public StreamLevelConsumer createStreamLevelConsumer(String clientId, String tableName, Set<String> fieldsToRead,
       String groupId) {
-    return new PulsarStreamLevelConsumer(clientId, tableName, _streamConfig, fieldsToRead, groupId);
+    return null;
   }
 
   @Override
   public StreamMetadataProvider createPartitionMetadataProvider(String clientId, int partition) {
-    return new PulsarStreamMetadataProvider(clientId, _streamConfig, partition);
+    try {
+      return new PulsarStreamMetadataProvider(clientId, _streamConfig, partition);
+    } catch (IOException e) {
+      LOGGER.error("Could not connect to pulsar", e);
+      return null;
+    }
   }
 
   @Override
   public StreamMetadataProvider createStreamMetadataProvider(String clientId) {
-    return new PulsarStreamMetadataProvider(clientId, _streamConfig);
-  }
-
-  @Override
-  public StreamPartitionMsgOffsetFactory createStreamMsgOffsetFactory() {
-    return new MessageIdStreamOffsetFactory();
-  }
-
-  @Override
-  public PartitionGroupConsumer createPartitionGroupConsumer(String clientId,
-      PartitionGroupConsumptionStatus partitionGroupConsumptionStatus) {
-    return new PulsarPartitionLevelConsumer(clientId, _streamConfig, partitionGroupConsumptionStatus);
+    try {
+      return new PulsarStreamMetadataProvider(clientId, _streamConfig);
+    } catch (IOException e) {
+      LOGGER.error("Could not connect to pulsar", e);
+      return null;
+    }
   }
 }

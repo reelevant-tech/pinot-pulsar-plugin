@@ -18,30 +18,36 @@
  */
 package com.reelevant.pinot.plugins.stream.pulsar;
 
-import org.apache.pinot.spi.stream.StreamConfig;
-import org.apache.pinot.spi.stream.StreamPartitionMsgOffset;
-import org.apache.pinot.spi.stream.StreamPartitionMsgOffsetFactory;
+import java.nio.ByteBuffer;
 
 
-/**
- * {@link StreamPartitionMsgOffsetFactory} implementation for Pulsar streams.
- */
-public class MessageIdStreamOffsetFactory implements StreamPartitionMsgOffsetFactory {
-  private StreamConfig _streamConfig;
+public class MessageAndOffset {
 
-  @Override
-  public void init(StreamConfig streamConfig) {
-    _streamConfig = streamConfig;
+  private ByteBuffer _message;
+  private long _offset;
+
+  public MessageAndOffset(byte[] message, long offset) {
+    this(ByteBuffer.wrap(message), offset);
   }
 
-  @Override
-  public StreamPartitionMsgOffset create(String offsetStr) {
-    return new MessageIdStreamOffset(offsetStr);
+  public MessageAndOffset(ByteBuffer message, long offset) {
+    _message = message;
+    _offset = offset;
   }
 
-  @Override
-  public StreamPartitionMsgOffset create(StreamPartitionMsgOffset other) {
-    MessageIdStreamOffset messageIdStreamOffset = (MessageIdStreamOffset) other;
-    return new MessageIdStreamOffset(messageIdStreamOffset.getMessageId());
+  public ByteBuffer getMessage() {
+    return _message;
+  }
+
+  public long getOffset() {
+    return _offset;
+  }
+
+  public long getNextOffset() {
+    return getOffset() + 1;
+  }
+
+  public int payloadSize() {
+    return getMessage().array().length;
   }
 }
