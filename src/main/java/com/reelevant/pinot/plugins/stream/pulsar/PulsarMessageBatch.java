@@ -18,15 +18,17 @@
  */
 package com.reelevant.pinot.plugins.stream.pulsar;
 
+import java.util.ArrayList;
 import java.util.List;
-import org.apache.pinot.spi.stream.LongMsgOffset;
 import org.apache.pinot.spi.stream.MessageBatch;
-import org.apache.pinot.spi.stream.StreamPartitionMsgOffset;
 
 
+/**
+ * A {@link MessageBatch} for collecting messages from pulsar topic
+ */
 public class PulsarMessageBatch implements MessageBatch<byte[]> {
 
-  private final List<MessageAndOffset> _messageList;
+  private List<MessageAndOffset> _messageList = new ArrayList<>();
 
   public PulsarMessageBatch(List<MessageAndOffset> messages) {
     _messageList = messages;
@@ -54,11 +56,6 @@ public class PulsarMessageBatch implements MessageBatch<byte[]> {
 
   @Override
   public long getNextStreamMessageOffsetAtIndex(int index) {
-    throw new UnsupportedOperationException("This method is deprecated");
-  }
-
-  @Override
-  public StreamPartitionMsgOffset getNextStreamParitionMsgOffsetAtIndex(int index) {
-    return new LongMsgOffset(_messageList.get(index).getNextOffset());
+    return _messageList.get(index).getNextOffset();
   }
 }
