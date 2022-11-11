@@ -22,7 +22,7 @@
     <dependency>
       <groupId>org.apache.pinot</groupId>
       <artifactId>pinot-spi</artifactId>
-      <version>0.10.0</version>
+      <version>0.11.0</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
