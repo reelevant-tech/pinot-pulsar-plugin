@@ -31,12 +31,12 @@ import org.apache.pinot.spi.utils.EqualityUtils;
  */
 public class PulsarPartitionLevelStreamConfig {
 
-  public static final String PULSAR_BROKER_LIST = "pulsar.broker.list";
-  public static final String PULSAR_CONSUMER_SIZE_BYTES = "pulsar.consumer.maxBytes";
+  public static final String PULSAR_BROKER_LIST = "broker.list";
+  public static final String PULSAR_CONSUMER_SIZE_BYTES = "consumer.maxBytes";
   public static final int PULSAR_CONSUMER_SIZE_BYTES_DEFAULT = 1024 * 1024 * 10;
-  public static final String PULSAR_CONSUMER_SIZE_MSGS = "pulsar.consumer.maxMsgs";
+  public static final String PULSAR_CONSUMER_SIZE_MSGS = "consumer.maxMsgs";
   public static final int PULSAR_CONSUMER_SIZE_MSGS_DEFAULT = 500;
-  public static final String PULSAR_CONSUMER_TIMEOUT = "pulsar.consumer.timeout";
+  public static final String PULSAR_CONSUMER_TIMEOUT = "consumer.timeout";
   public static final int PULSAR_CONSUMER_TIMEOUT_DEFAULT = 100;
   public static final String STREAM_TYPE = "pulsar";
   
