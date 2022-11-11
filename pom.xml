@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.reelevant.pinot.plugins.stream.pulsar</groupId>
   <artifactId>pulsar-stream-ingestion</artifactId>
-  <version>v1.1.8</version>
+  <version>v1.1.9</version>
   <name>pulsar-stream-ingestion</name>
   <description>Apache Pinot stream ingestion plugin for Apache Pulsar</description>
   <url>https://github.com/reelevant-tech/pinot-pulsar-plugin</url>
