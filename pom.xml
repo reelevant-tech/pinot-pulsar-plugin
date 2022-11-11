@@ -121,11 +121,11 @@
                   <relocations>
                     <relocation>
                       <pattern>com.google.common</pattern>
-                      <shadedPattern>shaded.com.google.common</shadedPattern>
+                      <shadedPattern>org.apache.pinot.shaded.com.google.common</shadedPattern>
                     </relocation>
                     <relocation>
                       <pattern>com.fasterxml.jackson</pattern>
-                      <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>
+                      <shadedPattern>org.apache.pinot.shaded.com.fasterxml.jackson</shadedPattern>
                     </relocation>
                   </relocations>
                   <filters>
