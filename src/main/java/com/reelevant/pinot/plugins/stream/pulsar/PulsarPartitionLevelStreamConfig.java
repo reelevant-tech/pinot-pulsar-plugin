@@ -20,15 +20,26 @@ package com.reelevant.pinot.plugins.stream.pulsar;
 
 import com.google.common.base.Preconditions;
 import java.util.Map;
-import org.apache.pinot.spi.utils.EqualityUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pinot.spi.stream.StreamConfig;
+import org.apache.pinot.spi.stream.StreamConfigProperties;
+import org.apache.pinot.spi.utils.EqualityUtils;
 
 
 /**
  * Wrapper around {@link StreamConfig} for use in {@link PulsarPartitionLevelConsumer}
  */
 public class PulsarPartitionLevelStreamConfig {
+
+  public static final String PULSAR_BROKER_LIST = "pulsar.broker.list";
+  public static final String PULSAR_CONSUMER_SIZE_BYTES = "pulsar.consumer.maxBytes";
+  public static final int PULSAR_CONSUMER_SIZE_BYTES_DEFAULT = 1024 * 1024 * 10;
+  public static final String PULSAR_CONSUMER_SIZE_MSGS = "pulsar.consumer.maxMsgs";
+  public static final int PULSAR_CONSUMER_SIZE_MSGS_DEFAULT = 500;
+  public static final String PULSAR_CONSUMER_TIMEOUT = "pulsar.consumer.timeout";
+  public static final int PULSAR_CONSUMER_TIMEOUT_DEFAULT = 100;
+  public static final String STREAM_TYPE = "pulsar";
+  
 
   private final String _topicName;
   private final String _bootstrapHosts;
@@ -45,15 +56,15 @@ public class PulsarPartitionLevelStreamConfig {
     _streamConfigMap = streamConfig.getStreamConfigsMap();
 
     _topicName = streamConfig.getTopicName();
+    String llcMaxMsgsKey = StreamConfigProperties.constructStreamProperty(STREAM_TYPE, PULSAR_CONSUMER_SIZE_MSGS);
+    int llcMaxMsgs = getIntConfigWithDefault(_streamConfigMap, llcMaxMsgsKey, PULSAR_CONSUMER_SIZE_MSGS_DEFAULT);
+    String llcMaxSizeKey = StreamConfigProperties.constructStreamProperty(STREAM_TYPE, PULSAR_CONSUMER_SIZE_BYTES);
+    int llcMaxSize = getIntConfigWithDefault(_streamConfigMap, llcMaxSizeKey, PULSAR_CONSUMER_SIZE_BYTES_DEFAULT);
+    String llcTimeoutKey = StreamConfigProperties.constructStreamProperty(STREAM_TYPE, PULSAR_CONSUMER_TIMEOUT);
+    int llcTimeout = getIntConfigWithDefault(_streamConfigMap, llcTimeoutKey, PULSAR_CONSUMER_TIMEOUT_DEFAULT);
 
-    String llcBrokerListKey = PulsarStreamConfigProperties
-        .constructStreamProperty(PulsarStreamConfigProperties.LowLevelConsumer.PULSAR_BROKER_LIST);
-    int llcMaxMsgs = getIntConfigWithDefault(_streamConfigMap, PulsarStreamConfigProperties.LowLevelConsumer.PULSAR_CONSUMER_SIZE_MSGS,
-      PulsarStreamConfigProperties.LowLevelConsumer.PULSAR_CONSUMER_SIZE_MSGS_DEFAULT);
-    int llcMaxSize = getIntConfigWithDefault(_streamConfigMap, PulsarStreamConfigProperties.LowLevelConsumer.PULSAR_CONSUMER_SIZE_BYTES,
-      PulsarStreamConfigProperties.LowLevelConsumer.PULSAR_CONSUMER_SIZE_BYTES_DEFAULT);
-    int llcTimeout = getIntConfigWithDefault(_streamConfigMap, PulsarStreamConfigProperties.LowLevelConsumer.PULSAR_CONSUMER_TIMEOUT,
-        PulsarStreamConfigProperties.LowLevelConsumer.PULSAR_CONSUMER_TIMEOUT_DEFAULT);
+    String llcBrokerListKey = StreamConfigProperties
+        .constructStreamProperty(STREAM_TYPE, PULSAR_BROKER_LIST);
     _bootstrapHosts = _streamConfigMap.get(llcBrokerListKey);
     _batchMaxBytes = llcMaxSize;
     _batchMaxMsgs = llcMaxMsgs;
